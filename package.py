@@ -22,83 +22,45 @@ PAGE_SIZE = 20
 
 
 def get_ffmpeg_path():
+    """获取 FFmpeg 路径（优先使用同目录下的 ffmpeg.exe）"""
+    # 检查同目录下是否有 ffmpeg.exe
     if getattr(sys, 'frozen', False):
-        base_path = sys._MEIPASS
-        ffmpeg_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffmpeg.exe')
-        if os.path.exists(ffmpeg_path):
-            return ffmpeg_path
-        return 'ffmpeg'
+        base_dir = sys._MEIPASS
     else:
-        return 'ffmpeg'
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # 检查同目录
+    if os.path.exists(os.path.join(base_dir, 'ffmpeg.exe')):
+        return os.path.join(base_dir, 'ffmpeg.exe')
+    # 检查同目录下的 bin 文件夹
+    if os.path.exists(os.path.join(base_dir, 'bin', 'ffmpeg.exe')):
+        return os.path.join(base_dir, 'bin', 'ffmpeg.exe')
+    # 检查 ffmpeg 文件夹
+    if os.path.exists(os.path.join(base_dir, 'ffmpeg', 'bin', 'ffmpeg.exe')):
+        return os.path.join(base_dir, 'ffmpeg', 'bin', 'ffmpeg.exe')
+
+    # 最后用系统 PATH 中的 ffmpeg
+    return 'ffmpeg'
 
 
 def get_ffprobe_path():
+    """获取 ffprobe 路径"""
     if getattr(sys, 'frozen', False):
-        base_path = sys._MEIPASS
-        ffprobe_path = os.path.join(base_path, 'ffmpeg', 'bin', 'ffprobe.exe')
-        if os.path.exists(ffprobe_path):
-            return ffprobe_path
-        return 'ffprobe'
+        base_dir = sys._MEIPASS
     else:
-        return 'ffprobe'
+        base_dir = os.path.dirname(os.path.abspath(__file__))
 
-
-def check_ffmpeg_installed():
-    try:
-        ffmpeg = get_ffmpeg_path()
-        result = subprocess.run([ffmpeg, '-version'], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            version_match = re.search(r'ffmpeg version (\S+)', result.stdout)
-            version = version_match.group(1) if version_match else '未知'
-            return True, version
-        return False, None
-    except Exception:
-        return False, None
-
-
-def install_ffmpeg_windows():
-    try:
-        result = subprocess.run(['winget', 'install', 'FFmpeg', '--silent'],
-                                capture_output=True, text=True, timeout=120)
-        if result.returncode == 0:
-            return True, "FFmpeg 安装成功！请重启工具。"
-        return False, f"安装失败: {result.stderr}"
-    except Exception as e:
-        return False, f"安装失败: {str(e)}"
-
-
-def install_ffmpeg_mac():
-    try:
-        brew_result = subprocess.run(['which', 'brew'], capture_output=True, text=True)
-        if brew_result.returncode != 0:
-            return False, "未找到 Homebrew，请先安装 Homebrew"
-
-        result = subprocess.run(['brew', 'install', 'ffmpeg'],
-                                capture_output=True, text=True, timeout=180)
-        if result.returncode == 0:
-            return True, "FFmpeg 安装成功！"
-        return False, f"安装失败: {result.stderr}"
-    except Exception as e:
-        return False, f"安装失败: {str(e)}"
-
-
-def get_video_thumbnail(file_path, output_path, time_pos=1.0):
-    try:
-        ffmpeg = get_ffmpeg_path()
-        cmd = [
-            ffmpeg, '-i', file_path,
-            '-ss', str(time_pos),
-            '-vframes', '1',
-            '-vf', 'scale=320:-1',
-            '-y', output_path
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-        return result.returncode == 0
-    except Exception:
-        return False
+    if os.path.exists(os.path.join(base_dir, 'ffprobe.exe')):
+        return os.path.join(base_dir, 'ffprobe.exe')
+    if os.path.exists(os.path.join(base_dir, 'bin', 'ffprobe.exe')):
+        return os.path.join(base_dir, 'bin', 'ffprobe.exe')
+    if os.path.exists(os.path.join(base_dir, 'ffmpeg', 'bin', 'ffprobe.exe')):
+        return os.path.join(base_dir, 'ffmpeg', 'bin', 'ffprobe.exe')
+    return 'ffprobe'
 
 
 def get_video_info(file_path):
+    """使用 ffprobe 获取视频信息"""
     try:
         ffprobe = get_ffprobe_path()
         cmd = [
@@ -169,6 +131,23 @@ def get_video_info(file_path):
         return None
 
 
+def get_video_thumbnail(file_path, output_path, time_pos=1.0):
+    """从视频中提取缩略图"""
+    try:
+        ffmpeg = get_ffmpeg_path()
+        cmd = [
+            ffmpeg, '-i', file_path,
+            '-ss', str(time_pos),
+            '-vframes', '1',
+            '-vf', 'scale=320:-1',
+            '-y', output_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 class ClickableLabel(QLabel):
     """可点击的标签，双击弹出输入框"""
     value_changed = pyqtSignal(int)
@@ -195,7 +174,6 @@ class ClickableLabel(QLabel):
 
     def mouseDoubleClickEvent(self, event):
         if self.is_float:
-            # 浮点数输入
             current_val = float(self.text())
             value, ok = QInputDialog.getDouble(
                 self, "输入数值",
@@ -203,12 +181,10 @@ class ClickableLabel(QLabel):
                 current_val, self.min_val, self.max_val, 2
             )
             if ok:
-                # 转换为整数（因为滑块是整数，速度值是 0-100 的整数）
                 int_val = int(round(value))
                 self.setText(f"{int_val / 100:.2f}")
                 self.value_changed.emit(int_val)
         else:
-            # 整数输入
             current_val = int(self.text())
             value, ok = QInputDialog.getInt(
                 self, "输入数值",
@@ -221,7 +197,7 @@ class ClickableLabel(QLabel):
 
 
 class ThumbnailLabel(QLabel):
-    """缩略图控件 - 悬停播放视频"""
+    """缩略图控件 - 悬停预览"""
 
     def __init__(self, filepath, parent=None):
         super().__init__(parent)
@@ -230,26 +206,26 @@ class ThumbnailLabel(QLabel):
         self.setAlignment(Qt.AlignCenter)
         self.setStyleSheet("background-color: #f0f0f0; border-radius: 4px; font-size: 20px;")
         self.setText("🎬")
-        self.video_window = None
+        self.preview_window = None
         self.hover_timer = QTimer()
         self.hover_timer.setSingleShot(True)
-        self.hover_timer.timeout.connect(self.show_video_preview)
+        self.hover_timer.timeout.connect(self.show_preview)
 
     def enterEvent(self, event):
         self.hover_timer.start(300)
 
     def leaveEvent(self, event):
         self.hover_timer.stop()
-        self.close_video_preview()
+        self.close_preview()
 
-    def show_video_preview(self):
-        """弹出视频预览窗口"""
-        if self.video_window and self.video_window.isVisible():
+    def show_preview(self):
+        """弹出预览窗口"""
+        if self.preview_window and self.preview_window.isVisible():
             return
 
-        self.video_window = QWidget()
-        self.video_window.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.video_window.setStyleSheet("""
+        self.preview_window = QWidget()
+        self.preview_window.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.preview_window.setStyleSheet("""
             QWidget {
                 background-color: #2c3e50;
                 border-radius: 8px;
@@ -257,51 +233,31 @@ class ThumbnailLabel(QLabel):
             }
         """)
 
-        layout = QVBoxLayout(self.video_window)
+        layout = QVBoxLayout(self.preview_window)
         layout.setContentsMargins(8, 8, 8, 8)
 
-        # 使用系统播放器嵌入
-        if sys.platform == 'win32':
-            # Windows 使用 Windows Media Player 控件
-            try:
-                from PyQt5.QAxContainer import QAxWidget
-                player = QAxWidget()
-                player.setControl("{6BF52A52-394A-11D3-B153-00C04F79FAA6}")
-                player.setProperty("URL", self.filepath)
-                player.setProperty("uiMode", "none")
-                player.setProperty("stretchToFit", True)
-                layout.addWidget(player)
-                self.video_window.resize(480, 320)
-            except:
-                # 降级方案：显示信息
-                info_label = QLabel("点击打开视频")
-                info_label.setStyleSheet("color: white; font-size: 14px;")
-                info_label.setAlignment(Qt.AlignCenter)
-                layout.addWidget(info_label)
-                self.video_window.resize(200, 100)
-        else:
-            # macOS/Linux：显示预览信息
-            info_label = QLabel(f"🎬\n{os.path.basename(self.filepath)}")
-            info_label.setStyleSheet("color: white; font-size: 14px;")
-            info_label.setAlignment(Qt.AlignCenter)
-            layout.addWidget(info_label)
-            self.video_window.resize(280, 160)
+        # 显示预览信息
+        info_label = QLabel(f"🎬\n{os.path.basename(self.filepath)}")
+        info_label.setStyleSheet("color: white; font-size: 14px;")
+        info_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(info_label)
+        self.preview_window.resize(280, 160)
 
         # 显示在鼠标位置
         pos = QCursor.pos()
         screen = QApplication.primaryScreen().geometry()
-        x = min(pos.x() + 10, screen.width() - self.video_window.width() - 10)
-        y = min(pos.y() + 10, screen.height() - self.video_window.height() - 10)
-        self.video_window.move(x, y)
-        self.video_window.show()
+        x = min(pos.x() + 10, screen.width() - self.preview_window.width() - 10)
+        y = min(pos.y() + 10, screen.height() - self.preview_window.height() - 10)
+        self.preview_window.move(x, y)
+        self.preview_window.show()
 
         # 点击窗口关闭
-        self.video_window.mousePressEvent = lambda e: self.close_video_preview()
+        self.preview_window.mousePressEvent = lambda e: self.close_preview()
 
-    def close_video_preview(self):
-        if self.video_window:
-            self.video_window.close()
-            self.video_window = None
+    def close_preview(self):
+        if self.preview_window:
+            self.preview_window.close()
+            self.preview_window = None
 
 
 class VideoTableRow(QWidget):
@@ -341,7 +297,7 @@ class VideoTableRow(QWidget):
         self.check_box.setFixedWidth(30)
         layout.addWidget(self.check_box)
 
-        # 缩略图（悬停预览）
+        # 缩略图
         self.thumbnail_label = ThumbnailLabel(self.filepath)
         layout.addWidget(self.thumbnail_label)
 
@@ -537,7 +493,7 @@ class VideoTableWidget(QWidget):
         self.table_layout.setContentsMargins(0, 0, 0, 0)
         self.table_layout.setSpacing(0)
 
-        # 表头 - 无背景色
+        # 表头
         header_widget = QWidget()
         header_widget.setStyleSheet("""
             QWidget {
@@ -726,6 +682,33 @@ class VideoTableWidget(QWidget):
         self.refresh_display()
 
 
+class ParamHintButton(QPushButton):
+    """带提示的问号按钮"""
+
+    def __init__(self, hint_text, parent=None):
+        super().__init__("?", parent)
+        self.hint_text = hint_text
+        self.setFixedSize(18, 18)
+        self.setStyleSheet("""
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                border-radius: 9px;
+                font-weight: bold;
+                font-size: 11px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+        """)
+        self.setToolTip(hint_text)
+        self.clicked.connect(self.show_hint)
+
+    def show_hint(self):
+        QMessageBox.information(self, "参数说明", self.hint_text)
+
+
 class WatermarkWorker(QThread):
     progress = pyqtSignal(int, str)
     finished = pyqtSignal(bool, str)
@@ -887,33 +870,6 @@ class WatermarkWorker(QThread):
         return cmd
 
 
-class ParamHintButton(QPushButton):
-    """带提示的问号按钮"""
-
-    def __init__(self, hint_text, parent=None):
-        super().__init__("?", parent)
-        self.hint_text = hint_text
-        self.setFixedSize(18, 18)
-        self.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
-                color: white;
-                border-radius: 9px;
-                font-weight: bold;
-                font-size: 11px;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #2980b9;
-            }
-        """)
-        self.setToolTip(hint_text)
-        self.clicked.connect(self.show_hint)
-
-    def show_hint(self):
-        QMessageBox.information(self, "参数说明", self.hint_text)
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -939,24 +895,6 @@ class MainWindow(QMainWindow):
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("font-size: 20px; font-weight: bold; padding: 8px; color: #2c3e50;")
         left_layout.addWidget(title)
-
-        # ---------- 环境检测 ----------
-        env_group = QGroupBox("🔧 环境检测")
-        env_layout = QHBoxLayout()
-        self.env_status_label = QLabel("⚪ 未检测")
-        self.env_status_label.setStyleSheet("font-weight: bold;")
-        self.check_env_btn = QPushButton("🔍 检测环境")
-        self.check_env_btn.clicked.connect(self.check_environment)
-        self.install_ffmpeg_btn = QPushButton("📥 安装 FFmpeg")
-        self.install_ffmpeg_btn.clicked.connect(self.install_ffmpeg)
-        self.install_ffmpeg_btn.setEnabled(False)
-
-        env_layout.addWidget(self.env_status_label)
-        env_layout.addStretch()
-        env_layout.addWidget(self.check_env_btn)
-        env_layout.addWidget(self.install_ffmpeg_btn)
-        env_group.setLayout(env_layout)
-        left_layout.addWidget(env_group)
 
         # 输入文件夹
         group1 = QGroupBox("📂 视频文件夹")
@@ -1021,12 +959,11 @@ class MainWindow(QMainWindow):
         group4.setLayout(group4_layout)
         left_layout.addWidget(group4)
 
-        # ---------- 参数调节 ----------
+        # 参数调节
         group5 = QGroupBox("⚙️  参数调节")
         group5_layout = QVBoxLayout()
         group5_layout.setSpacing(4)
 
-        # 参数说明按钮（问号）
         param_header = QHBoxLayout()
         param_header.addWidget(QLabel("参数调节"))
         param_header.addStretch()
@@ -1184,8 +1121,6 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("就绪")
         self.load_defaults()
 
-        QTimer.singleShot(500, self.check_environment)
-
     def load_defaults(self):
         default_folder = "/Users/leiliang/Desktop/movie_space"
         default_watermark = "/Users/leiliang/Desktop/movie_space/水印/shuiyin.png"
@@ -1236,58 +1171,6 @@ class MainWindow(QMainWindow):
                         item.widget().set_error()
                     break
 
-    def check_environment(self):
-        self.env_status_label.setText("⏳ 检测中...")
-        QApplication.processEvents()
-
-        installed, version = check_ffmpeg_installed()
-
-        if installed:
-            self.env_status_label.setText(f"✅ FFmpeg {version}")
-            self.env_status_label.setStyleSheet("color: #27ae60; font-weight: bold;")
-            self.install_ffmpeg_btn.setEnabled(False)
-            self.install_ffmpeg_btn.setText("✅ 已安装")
-        else:
-            self.env_status_label.setText("❌ 未安装 FFmpeg")
-            self.env_status_label.setStyleSheet("color: #e74c3c; font-weight: bold;")
-            self.install_ffmpeg_btn.setEnabled(True)
-            self.install_ffmpeg_btn.setText("📥 安装 FFmpeg")
-
-    def install_ffmpeg(self):
-        reply = QMessageBox.question(
-            self, "确认安装",
-            "即将安装 FFmpeg，这需要网络连接，可能需要几分钟。\n\n"
-            "安装过程中请勿关闭程序。",
-            QMessageBox.Yes | QMessageBox.No
-        )
-
-        if reply != QMessageBox.Yes:
-            return
-
-        self.install_ffmpeg_btn.setEnabled(False)
-        self.install_ffmpeg_btn.setText("⏳ 安装中...")
-        self.env_status_label.setText("⏳ 正在安装 FFmpeg...")
-        QApplication.processEvents()
-
-        if sys.platform == 'win32':
-            success, msg = install_ffmpeg_windows()
-        elif sys.platform == 'darwin':
-            success, msg = install_ffmpeg_mac()
-        else:
-            success, msg = False, "不支持的操作系统，请手动安装 FFmpeg"
-
-        if success:
-            self.env_status_label.setText("✅ FFmpeg 安装成功！请重启工具")
-            self.env_status_label.setStyleSheet("color: #27ae60; font-weight: bold;")
-            self.install_ffmpeg_btn.setText("✅ 已安装")
-            QMessageBox.information(self, "安装完成", msg)
-        else:
-            self.env_status_label.setText("❌ 安装失败")
-            self.env_status_label.setStyleSheet("color: #e74c3c; font-weight: bold;")
-            self.install_ffmpeg_btn.setEnabled(True)
-            self.install_ffmpeg_btn.setText("📥 安装 FFmpeg")
-            QMessageBox.warning(self, "安装失败", f"安装失败：{msg}")
-
     def start_processing(self):
         input_folder = self.folder_input.text()
         watermark_path = self.watermark_input.text()
@@ -1298,17 +1181,6 @@ class MainWindow(QMainWindow):
 
         if not os.path.exists(watermark_path):
             QMessageBox.warning(self, "错误", "水印图片不存在！")
-            return
-
-        installed, _ = check_ffmpeg_installed()
-        if not installed:
-            reply = QMessageBox.question(
-                self, "FFmpeg 未安装",
-                "FFmpeg 未安装，无法处理视频。\n\n是否立即安装？",
-                QMessageBox.Yes | QMessageBox.No
-            )
-            if reply == QMessageBox.Yes:
-                self.install_ffmpeg()
             return
 
         mode_index = self.mode_combo.currentIndex()
