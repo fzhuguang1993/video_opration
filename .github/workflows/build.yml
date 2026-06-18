@@ -10,21 +10,24 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # 1. 升级 actions/checkout 到 v4
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
+      # 2. 升级 actions/setup-python 到 v5
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install pyinstaller PyQt5
 
       - name: Build EXE
         run: |
-          pyinstaller --onefile --windowed --name "VideoWatermark" --hidden-import PyQt5.QAxContainer video_watermark.py
+          pyinstaller --onefile --windowed --name "VideoWatermark" --hidden-import PyQt5.QAxContainer package.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
