@@ -1,0 +1,183 @@
+import os
+import json
+import subprocess
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+from config import (
+    FFMPEG_DEFAULT_VIDEO_BITRATE, FFMPEG_DEFAULT_AUDIO_BITRATE,
+    FFMPEG_DEFAULT_FPS, FFMPEG_WATERMARK_SCALE
+)
+from utils.file_utils import get_base_dir
+
+
+def get_ffmpeg_path() -> str:
+    """获取 FFmpeg 路径（优先使用同目录下的 ffmpeg.exe）"""
+    base_dir = get_base_dir()
+    check_paths = [
+        os.path.join(base_dir, 'ffmpeg.exe'),
+        os.path.join(base_dir, 'bin', 'ffmpeg.exe'),
+        os.path.join(base_dir, 'ffmpeg', 'bin', 'ffmpeg.exe')
+    ]
+    for path in check_paths:
+        if os.path.exists(path):
+            return path
+    return 'ffmpeg'
+
+
+def get_ffprobe_path() -> str:
+    """获取 ffprobe 路径"""
+    base_dir = get_base_dir()
+    check_paths = [
+        os.path.join(base_dir, 'ffprobe.exe'),
+        os.path.join(base_dir, 'bin', 'ffprobe.exe'),
+        os.path.join(base_dir, 'ffmpeg', 'bin', 'ffprobe.exe')
+    ]
+    for path in check_paths:
+        if os.path.exists(path):
+            return path
+    return 'ffprobe'
+
+
+def get_video_info(file_path: str) -> Optional[dict]:
+    """使用 ffprobe 获取视频信息"""
+    try:
+        ffprobe = get_ffprobe_path()
+        cmd = [
+            ffprobe, '-v', 'quiet',
+            '-print_format', 'json',
+            '-show_format',
+            '-show_streams',
+            file_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            return None
+
+        data = json.loads(result.stdout)
+        info = {
+            'width': 'N/A', 'height': 'N/A', 'fps': 'N/A',
+            'codec': 'N/A', 'bitrate': 'N/A', 'duration': 'N/A',
+            'orientation': 'N/A', 'audio_bitrate': 'N/A'
+        }
+
+        # 解析视频流信息
+        for stream in data.get('streams', []):
+            if stream.get('codec_type') == 'video':
+                info['width'] = stream.get('width', 'N/A')
+                info['height'] = stream.get('height', 'N/A')
+                info['codec'] = stream.get('codec_name', 'N/A')
+
+                # 解析帧率
+                fps = stream.get('r_frame_rate', '0/0')
+                if '/' in str(fps):
+                    try:
+                        num, den = fps.split('/')
+                        info['fps'] = f"{int(num) / int(den):.2f}" if int(den) > 0 else 'N/A'
+                    except:
+                        info['fps'] = 'N/A'
+
+                # 判断横竖屏
+                if info['width'] != 'N/A' and info['height'] != 'N/A':
+                    info['orientation'] = '竖屏' if info['width'] < info['height'] else '横屏'
+
+        # 解析格式信息（码率、时长）
+        fmt = data.get('format', {})
+        bitrate = fmt.get('bit_rate', '0')
+        if bitrate not in ('0', 'N/A'):
+            info['bitrate'] = f"{int(bitrate) / 1000:.0f} kbps"
+
+        duration = fmt.get('duration', '0')
+        if duration not in ('0', 'N/A'):
+            try:
+                sec = float(duration)
+                info['duration'] = f"{int(sec // 60)}:{int(sec % 60):02d}"
+            except:
+                info['duration'] = 'N/A'
+
+        # 解析音频码率
+        for stream in data.get('streams', []):
+            if stream.get('codec_type') == 'audio':
+                abr = stream.get('bit_rate', '0')
+                if abr not in ('0', 'N/A'):
+                    info['audio_bitrate'] = f"{int(abr) / 1000:.0f} kbps"
+                    break
+
+        return info
+    except Exception:
+        return None
+
+
+def get_video_thumbnail(file_path: str, output_path: str, time_pos: float = 1.0) -> bool:
+    """从视频中提取缩略图"""
+    try:
+        ffmpeg = get_ffmpeg_path()
+        cmd = [
+            ffmpeg, '-i', file_path, '-ss', str(time_pos),
+            '-vframes', '1', '-vf', f'scale={FFMPEG_WATERMARK_SCALE}:-1',
+            '-y', output_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def build_watermark_command(
+    input_path: str, output_path: str, watermark_path: str,
+    right_margin: int, bottom_y: int,
+    speed_x: float, speed_y: float,
+    top_margin: int, bottom_margin: int,
+    position_mode: int
+) -> list:
+    """构建水印处理的FFmpeg命令"""
+    ffmpeg_path = get_ffmpeg_path()
+    wm_scale = FFMPEG_WATERMARK_SCALE
+
+    if position_mode == 1:  # 右下角固定
+        filter_complex = (
+            f'[1:v]scale={wm_scale}:-1,format=rgba[wm];'
+            f'[0:v]scale=1080:1920:flags=lanczos,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,format=rgb24[bg];'
+            f'[bg][wm]overlay=W-{wm_scale}-{right_margin}:{bottom_y}:alpha=1'
+        )
+    elif position_mode == 2:  # 碰撞反弹
+        scroll_range_y = f"(H-{wm_scale}-{top_margin}-{bottom_margin})"
+        scroll_range_x = f"(W-{wm_scale})"
+        filter_complex = (
+            f'[1:v]scale={wm_scale}:-1,format=rgba[wm];'
+            f'[0:v]scale=1080:1920:flags=lanczos,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,format=rgb24[bg];'
+            f'[bg][wm]overlay=x={scroll_range_x}*abs(sin(t*{speed_x})):y={top_margin}+{scroll_range_y}*abs(cos(t*{speed_y})):alpha=1'
+        )
+    else:  # 右下角+碰撞反弹
+        scroll_range_y = f"(H-{wm_scale}-{top_margin}-{bottom_margin})"
+        scroll_range_x = f"(W-{wm_scale})"
+        filter_complex = (
+            f'[1:v]scale={wm_scale}:-1,format=rgba[wm1];'
+            f'[1:v]scale={wm_scale}:-1,format=rgba[wm2];'
+            f'[0:v]scale=1080:1920:flags=lanczos,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,format=rgb24[bg];'
+            f'[bg][wm1]overlay=W-{wm_scale}-{right_margin}:{bottom_y}:alpha=1[bg1];'
+            f'[bg1][wm2]overlay=x={scroll_range_x}*abs(sin(t*{speed_x})):y={top_margin}+{scroll_range_y}*abs(cos(t*{speed_y})):alpha=1'
+        )
+
+    # 正确参数：-i 原视频 -i 水印图，最后才是输出文件
+    return [
+        ffmpeg_path,
+        '-i', input_path,
+        '-i', watermark_path,
+        '-filter_complex', filter_complex,
+        '-c:v', 'libx264',
+        '-b:v', FFMPEG_DEFAULT_VIDEO_BITRATE,
+        '-r', str(FFMPEG_DEFAULT_FPS),
+        '-c:a', 'aac',
+        '-b:a', FFMPEG_DEFAULT_AUDIO_BITRATE,
+        '-y', output_path
+    ]
+
+def generate_output_filename(input_path: str, position_mode: int) -> str:
+    """生成带水印的输出文件名"""
+    mode_names = {1: '右下角', 2: '碰撞反弹', 3: '右下角+碰撞反弹'}
+    base_name = Path(input_path).stem
+    today = datetime.now().strftime("%Y-%m-%d")
+    mode_name = mode_names.get(position_mode, '水印')
+    return f"{today}_{base_name}_水印_{mode_name}.mp4"

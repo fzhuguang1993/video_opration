@@ -1,0 +1,47 @@
+======================================================================
+🗑️ 建议删除的文件清单
+======================================================================
+总文件: 47
+已使用: 11
+未使用: 36
+======================================================================
+
+✅ 可直接删除（完全未被引用）:
+  🗑️  auth/init.py
+  🗑️  migrate_db.py
+  🗑️  movie_work_space.py
+  🗑️  package.py
+  🗑️  scan_structure.py
+  🗑️  test/analyze_deps.py
+  🗑️  test/debug_style.py
+  🗑️  test/mv_files.py
+  🗑️  test/self_check.py
+  🗑️  ui/components/params_panel.py
+  🗑️  ui/pages/__init__.py
+  🗑️  ui/pages/assets_page.py
+  🗑️  ui/pages/batch_paste_page.py
+  🗑️  ui/pages/dashboard_page.py
+  🗑️  ui/pages/reports_page.py
+  🗑️  ui/pages/settings_page.py
+  🗑️  ui/pages/toolbox_page.py
+  🗑️  ui/pages/watermark_page.py
+  🗑️  utils/__init__.py
+  🗑️  utils/tools/__init__.py
+  🗑️  utils/tools/batch_input_tool.py
+  🗑️  widgets/video_table_row.py
+
+⚠️ 需要确认（被其他文件引用，但入口未触发）:
+  ⚠️  ui/components/collapsible_params_panel.py (被 ui/pages/watermark_page.py 引用)
+  ⚠️  ui/components/tool_panel.py (被 ui/pages/watermark_page.py 引用)
+  ⚠️  utils/ffmpeg_utils.py (被 widgets/video_table_row.py, widgets/video_table.py, worker/watermark_worker.py 引用)
+  ⚠️  utils/file_utils.py (被 worker/watermark_worker.py, widgets/video_table.py, utils/ffmpeg_utils.py 等 引用)
+  ⚠️  utils/smb_utils.py (被 widgets/trace_dialog.py 引用)
+  ⚠️  utils/tools/base_tool.py (被 utils/tools/batch_input_tool.py 引用)
+  ⚠️  utils/trace_utils.py (被 widgets/trace_dialog.py 引用)
+  ⚠️  widgets/clickable_label.py (被 ui/components/collapsible_params_panel.py, ui/components/params_panel.py, ui/pages/watermark_page.py 引用)
+  ⚠️  widgets/param_hint_btn.py (被 ui/components/collapsible_params_panel.py, ui/components/params_panel.py, ui/pages/watermark_page.py 引用)
+  ⚠️  widgets/thumbnail_label.py (被 widgets/video_table_row.py, widgets/video_table.py 引用)
+  ⚠️  widgets/tool_select_dialog.py (被 ui/components/tool_panel.py 引用)
+  ⚠️  widgets/trace_dialog.py (被 widgets/video_table.py 引用)
+  ⚠️  widgets/video_table.py (被 ui/pages/watermark_page.py 引用)
+  ⚠️  worker/watermark_worker.py (被 ui/pages/watermark_page.py 引用)
