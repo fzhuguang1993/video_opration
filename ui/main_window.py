@@ -1,5 +1,7 @@
 # ui/main_window.py
 """主窗口 - 侧边栏 + 标签页布局"""
+from datetime import datetime
+
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QStackedWidget
 )
@@ -33,6 +35,25 @@ class MainWindow(QMainWindow):
         self.logger.info("初始化主窗口")
         self._setup_window()
         self._setup_ui()
+
+    def update_title_with_sync_time(self, sync_time: str = None):
+        """更新窗口标题，显示上次同步时间"""
+        if not sync_time:
+            sync_time = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+        if self.current_user:
+            real_name = self.current_user.get("real_name", "未知")
+            role = self.current_user.get("role", 0)
+            role_map = {1: "管理员", 2: "运营", 3: "剪辑"}
+            role_name = role_map.get(role, f"角色{role}")
+            self.setWindowTitle(
+                f"{self.config.APP_ICON} {self.config.APP_NAME} v{self.config.APP_VERSION}  "
+                f"姓名:{real_name} 岗位:{role_name}  [更新:{sync_time}]"
+            )
+        else:
+            self.setWindowTitle(
+                f"{self.config.APP_ICON} {self.config.APP_NAME} v{self.config.APP_VERSION}  [更新:{sync_time}]"
+            )
 
     def _setup_window(self):
         """设置窗口"""
@@ -141,7 +162,6 @@ class MainWindow(QMainWindow):
         if tab_id == "toolbox":
             # 显示工具箱页面，连接工具选择信号
             toolbox_page = self.pages["toolbox"]
-            toolbox_page.tool_selected.connect(self._on_tool_selected)
             self.stack.setCurrentWidget(toolbox_page)
         else:
             # 直接切换页面

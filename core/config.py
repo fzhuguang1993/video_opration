@@ -102,6 +102,7 @@ class AppConfig:
     # 🎨 Linear 风格样式表
     # ================================================================
 
+    # ... existing code ...
     @property
     def full_stylesheet(self) -> str:
         """完整的样式表 - Linear 风格"""
@@ -118,8 +119,9 @@ class AppConfig:
             self.style_slider_progress,
             self.style_table,
             self.style_table_rows,
-            self.style_assets_table,      # ✅ 添加
-            self.style_assets_tab,        # ✅ 添加
+            self.style_assets_table,
+            self.style_assets_tab,
+            self.style_trace_tab,
             self.style_checkbox,
             self.style_menu,
             self.style_scrollbar,
@@ -129,6 +131,8 @@ class AppConfig:
             self.style_log_text,
             self.style_login_dialog,
         ])
+    # ... existing code ...
+
 
     # 表格样式
 
@@ -648,6 +652,8 @@ class AppConfig:
         """
 
     # ===== Tab 样式 =====
+    # ... existing code ...
+    # ===== Tab 样式 =====
     @property
     def style_assets_tab(self) -> str:
         return """
@@ -678,6 +684,37 @@ class AppConfig:
                 background: #f1f2f4;
             }
         """
+
+    @property
+    def style_trace_tab(self) -> str:
+        return """
+               QTabWidget#trace_tab_widget::pane {
+                   background: white;
+                   border: 1px solid #e6e7ea;
+                   border-radius: 8px;
+                   padding: 8px;
+               }
+               QTabWidget#trace_tab_widget QTabBar::tab {
+                   background: #f8f9fa;
+                   color: #495057;
+                   border: 1px solid #e6e7ea;
+                   border-bottom: none;
+                   border-radius: 6px 6px 0 0;
+                   padding: 8px 18px;
+                   font-size: 12px;
+                   font-weight: 500;
+                   margin-right: 2px;
+                   min-width: 60px;
+               }
+               QTabWidget#trace_tab_widget QTabBar::tab:selected {
+                   background: #ebecef;
+                   color: #5e6ad2;
+                   font-weight: 600;
+               }
+               QTabWidget#trace_tab_widget QTabBar::tab:hover {
+                   background: #f1f2f4;
+               }
+           """
 
     # ===== 表格行 =====
     @property
@@ -920,49 +957,143 @@ class AppConfig:
     def style_login_dialog(self) -> str:
         return """
             QDialog#login_dialog {
-                background: #f5f6f8;
-                border-radius: 8px;
-            }
-            QGroupBox#login_card {
                 background: #ffffff;
+            }
+            QFrame#login_header {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #5e6ad2, stop:1 #7c6fd2);
+            }
+            QLabel#login_title {
+                font-size: 24px;
+                font-weight: 700;
+                color: #ffffff;
+                letter-spacing: -0.3px;
+            }
+            QLabel#login_subtitle {
+                font-size: 13px;
+                color: rgba(255, 255, 255, 0.75);
+            }
+            QFrame#login_body {
+                background: #ffffff;
+            }
+            QLabel#login_field_label {
+                font-size: 13px;
+                font-weight: 600;
+                color: #1a1a2e;
+                padding-bottom: 2px;
+            }
+            QLineEdit#login_input {
+                background: #f5f6f8;
                 border: 1px solid #e6e7ea;
                 border-radius: 8px;
-                margin-top: 0px;
-                padding: 30px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+                padding: 0 16px;
+                color: #1a1a2e;
+                font-size: 14px;
             }
-            QGroupBox#login_card::title {
-                subcontrol-origin: margin;
-                left: 0px;
-                padding: 0px;
-                color: transparent;
+            QLineEdit#login_input:focus {
+                border-color: #5e6ad2;
+                background: #ffffff;
+            }
+            QLineEdit#login_input::placeholder {
+                color: #b0b0bc;
+            }
+            QLabel#login_error {
+                color: #eb5757;
+                font-size: 12px;
+                padding: 8px 12px;
+                background: #fef2f2;
+                border-radius: 6px;
+                border: 1px solid #fccccc;
             }
             QPushButton#login_btn {
                 background: #5e6ad2;
-                color: white;
+                color: #ffffff;
                 border: none;
-                border-radius: 6px;
-                padding: 11px 24px;
-                font-size: 14px;
-                font-weight: 500;
-                min-width: 100px;
+                border-radius: 8px;
+                font-size: 15px;
+                font-weight: 600;
+                letter-spacing: 2px;
             }
             QPushButton#login_btn:hover {
                 background: #4f5bc9;
             }
-            QPushButton#login_cancel_btn {
-                background: transparent;
-                border: 1px solid #e6e7ea;
-                color: #4a4a5a;
-                border-radius: 6px;
-                padding: 11px 24px;
-                font-size: 14px;
-                min-width: 100px;
+            QPushButton#login_btn:pressed {
+                background: #424ebd;
             }
-            QPushButton#login_cancel_btn:hover {
+            QPushButton#login_link_btn {
+                background: transparent;
+                color: #8a8a9a;
+                border: none;
+                font-size: 13px;
+                padding: 4px 8px;
+            }
+            QPushButton#login_link_btn:hover {
+                color: #5e6ad2;
+            }
+
+            QDialog#change_pwd_dialog {
+                background: #ffffff;
+            }
+            QFrame#change_pwd_header {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #5e6ad2, stop:1 #7c6fd2);
+            }
+            QLabel#change_pwd_title {
+                font-size: 20px;
+                font-weight: 700;
+                color: #ffffff;
+            }
+            QLabel#change_pwd_subtitle {
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.7);
+            }
+            QFrame#change_pwd_body {
+                background: #ffffff;
+            }
+            QLabel#field_label {
+                font-size: 13px;
+                font-weight: 600;
+                color: #1a1a2e;
+                padding-bottom: 2px;
+            }
+            QLineEdit#field_input {
                 background: #f5f6f8;
+                border: 1px solid #e6e7ea;
+                border-radius: 8px;
+                padding: 0 14px;
+                color: #1a1a2e;
+                font-size: 14px;
+            }
+            QLineEdit#field_input:focus {
+                border-color: #5e6ad2;
+                background: #ffffff;
+            }
+            QPushButton#change_pwd_ok_btn {
+                background: #5e6ad2;
+                color: #ffffff;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 500;
+            }
+            QPushButton#change_pwd_ok_btn:hover {
+                background: #4f5bc9;
+            }
+            QPushButton#change_pwd_cancel_btn {
+                background: #f5f6f8;
+                color: #4a4a5a;
+                border: 1px solid #e6e7ea;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 500;
+            }
+            QPushButton#change_pwd_cancel_btn:hover {
+                background: #ebecef;
             }
         """
+
+    # ... existing code ...
+
 
 
 # 单例配置

@@ -1,6 +1,7 @@
 # config.py
 """全局配置常量 - 支持环境切换"""
 import os
+import json
 
 # ================================================================
 # 🌍 环境配置
@@ -52,16 +53,26 @@ TRACE_CONFIG = {
 }
 
 # ================================================================
+# 快手 API 配置
+# ================================================================
+KUAISHOU_APP_ID = 165929555
+KUAISHOU_SECRET = '~O6#V7t&&@h7I?&?'
+KUAISHOU_ACCESS_TOKEN = '07652bb0db0da6795906c2bb80c03fd8'
+KUAISHOU_ADVERTISER_ID = 113788225
+KUAISHOU_REFRESH_TOKEN = 'ea6b1d4405a5ea54e9fe7a5eb2976e26'
+KUAISHOU_AUTH_CODE = '我是你爷爷'
+
+# ================================================================
 # 数据库配置 - 根据环境切换
 # ================================================================
 if ENV == "test":
     DB_CFG = {
-        "host": "localhost",
+        "host": "127.0.0.1",
         "port": 3306,
         "user": "root",
-        "password": "",
+        "password": "123456",
         "database": "yunying_test",
-        "charset": "utf8mb4"
+        "charset": "utf8mb4",
     }
 else:
     DB_CFG = {
