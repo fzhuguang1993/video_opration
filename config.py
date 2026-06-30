@@ -57,9 +57,9 @@ TRACE_CONFIG = {
 # ================================================================
 KUAISHOU_APP_ID = 165929555
 KUAISHOU_SECRET = '~O6#V7t&&@h7I?&?'
-KUAISHOU_ACCESS_TOKEN = '07652bb0db0da6795906c2bb80c03fd8'
+KUAISHOU_ACCESS_TOKEN = 'e3b4fc485155888b38d5a4bd4c16f579'
 KUAISHOU_ADVERTISER_ID = 113788225
-KUAISHOU_REFRESH_TOKEN = 'ea6b1d4405a5ea54e9fe7a5eb2976e26'
+KUAISHOU_REFRESH_TOKEN = '99721782a35e903f43b18f6f7ac2a293'
 KUAISHOU_AUTH_CODE = '我是你爷爷'
 
 # ================================================================

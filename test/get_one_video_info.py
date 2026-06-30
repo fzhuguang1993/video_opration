@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""测试快手接口返回字段"""
+"""测试快手接口返回字段 - 保存原始JSON"""
 
 import requests
 import json
 import sys
 import os
+from datetime import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -47,32 +48,21 @@ def test_api():
     response = requests.post(url, json=payload, headers=headers, timeout=30)
     result = response.json()
 
-    print("📥 响应结果:")
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    # 🔥 保存第一手原始JSON
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"kuaishou_raw_response_{timestamp}.json"
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(result, f, indent=2, ensure_ascii=False)
+    print(f"✅ 原始JSON已保存到: {filename}")
+    print("-" * 70)
+
+    print("📥 响应结果预览:")
+    print(json.dumps(result, indent=2, ensure_ascii=False)[:2000] + "...")
     print("-" * 70)
 
     # 查找包含 "2026-06-17_010.mp4" 的数据
     details = result.get('details', [])
     print(f"\n📊 共返回 {len(details)} 条数据")
-
-    # 查找目标视频
-    target = "2026-06-17_010.mp4"
-    found = False
-    for item in details:
-        photo_name = item.get('photo_name', '')
-        if target in photo_name:
-            found = True
-            print(f"\n✅ 找到目标视频:")
-            print(json.dumps(item, indent=2, ensure_ascii=False))
-            break
-
-    if not found:
-        print(f"\n❌ 未找到 {target}")
-        # 打印所有 photo_name 看看
-        print("\n📋 所有 photo_name:")
-        for item in details[:10]:
-            print(f"  - {item.get('photo_name', 'N/A')}")
-
 
 if __name__ == '__main__':
     test_api()
