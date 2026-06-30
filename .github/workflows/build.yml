@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller PySide6 pymysql requests smbprotocol pypinyin pandas
+          pip install pyinstaller PySide6 pymysql requests smbprotocol pypinyin pandas pyautogui numpy
 
       - name: Download FFmpeg
         shell: pwsh
@@ -47,6 +47,9 @@ jobs:
             --hidden-import smbprotocol `
             --hidden-import pypinyin `
             --hidden-import pandas `
+            --hidden-import numpy `
+            --hidden-import pyautogui `
+            --collect-all pyautogui `
             main.py
 
       - name: Upload artifact
