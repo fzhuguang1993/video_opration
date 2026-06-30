@@ -1,6 +1,7 @@
 import os
 import json
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -10,6 +11,15 @@ from config import (
     FFMPEG_DEFAULT_FPS, FFMPEG_WATERMARK_SCALE
 )
 from utils.file_utils import get_base_dir
+
+
+def _run_subprocess(cmd, **kwargs):
+    """跨平台 subprocess.run，Windows 下隐藏控制台窗口"""
+    kwargs.setdefault('capture_output', True)
+    kwargs.setdefault('text', True)
+    if sys.platform == 'win32':
+        kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+    return subprocess.run(cmd, **kwargs)
 
 
 def get_ffmpeg_path() -> str:
@@ -51,7 +61,7 @@ def get_video_info(file_path: str) -> Optional[dict]:
             '-show_streams',
             file_path
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        result = _run_subprocess(cmd, timeout=10)
         if result.returncode != 0:
             return None
 
@@ -118,7 +128,7 @@ def get_video_thumbnail(file_path: str, output_path: str, time_pos: float = 1.0)
             '-vframes', '1', '-vf', f'scale={FFMPEG_WATERMARK_SCALE}:-1',
             '-y', output_path
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        result = _run_subprocess(cmd, timeout=10)
         return result.returncode == 0
     except Exception:
         return False

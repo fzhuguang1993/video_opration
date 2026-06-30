@@ -162,10 +162,10 @@ class AppConfig:
                 background: #f5f6f8;
             }
             QWidget {
-                background: transparent;
+                background: #f5f6f8;
                 color: #1a1a2e;
                 font-size: 12px;
-                font-family: "Inter", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+                font-family: "Microsoft YaHei", "Inter", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
             }
             QDialog {
                 background: #f5f6f8;
