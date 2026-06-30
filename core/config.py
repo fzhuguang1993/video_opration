@@ -167,6 +167,9 @@ class AppConfig:
                 font-size: 12px;
                 font-family: "Microsoft YaHei", "Inter", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
             }
+            QLabel {
+                background: transparent;
+            }
             QDialog {
                 background: #f5f6f8;
             }

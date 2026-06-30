@@ -6,7 +6,7 @@ from pathlib import Path
 from datetime import datetime
 from PySide6.QtCore import QThread, Signal
 from utils.ffmpeg_utils import (
-    build_watermark_command, generate_output_filename, get_ffmpeg_path
+    build_watermark_command, generate_output_filename, get_ffmpeg_path, _run_subprocess
 )
 from utils.file_utils import get_sorted_video_files
 
