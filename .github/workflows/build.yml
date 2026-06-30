@@ -23,12 +23,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller PySide6 pymysql requests smbprotocol pypinyin
 
+      - name: Download FFmpeg
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "ffmpeg" -Force
+          Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile "ffmpeg.zip"
+          Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_temp" -Force
+          $ffmpegDir = (Get-ChildItem -Path "ffmpeg_temp" -Directory)[0].FullName
+          Copy-Item -Path "$ffmpegDir\bin\ffmpeg.exe" -Destination "ffmpeg\"
+
       - name: Build EXE
+        shell: pwsh
         run: |
           pyinstaller --onefile --windowed --name "MovieOperation" `
             --add-data "config.py;." `
             --add-data "tool_config.json;." `
-            --add-data "ffmpeg/ffmpeg.exe;ffmpeg" `
+            --add-data "ffmpeg\ffmpeg.exe;ffmpeg" `
             --hidden-import PySide6.QtCore `
             --hidden-import PySide6.QtWidgets `
             --hidden-import PySide6.QtGui `
