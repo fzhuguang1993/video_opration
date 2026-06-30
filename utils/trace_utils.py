@@ -6,7 +6,8 @@ from typing import List, Dict, Optional, Tuple
 from PySide6.QtWidgets import QMessageBox
 
 import pymysql
-from config import DB_CFG, TRACE_CONFIG
+from core.database import get_connection
+from config import TRACE_CONFIG
 
 # 尝试导入 pypinyin
 try:

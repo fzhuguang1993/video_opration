@@ -1,12 +1,13 @@
 # core/video_service.py
 """视频数据服务"""
 import pymysql
-from core.database import get_db_config
+from core.database import get_connection
+# ... existing code ...
+
 
 def get_operator_list():
     """获取操作员/用户列表"""
-    db_config = get_db_config()
-    conn = db_config.get_connection()
+    conn = get_connection()
     try:
         cur = conn.cursor()
         sql = "SELECT id, real_name FROM sys_user ORDER BY id ASC"
@@ -28,8 +29,7 @@ def get_user_video_list(user_id: int, is_admin: bool):
     Returns:
         list: 视频列表 [(trace_code, video_path, record_date, real_name), ...]
     """
-    db_config = get_db_config()
-    conn = db_config.get_connection()
+    conn = get_connection()
 
     try:
         cur = conn.cursor()

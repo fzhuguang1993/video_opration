@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QFont, QColor, QBrush
 
+from core.database import get_connection
 from .widget import TraceDropArea
 from .worker import TraceWorker, BindWorker
 
@@ -26,6 +27,9 @@ class TraceView(QWidget):
         self.current_user = None
         self.operators = []
         self.worker = None
+        self._pool_data = []
+        self._pool_page = 0
+        self._pool_page_size = 20
         self._setup_ui()
         self._load_operators()
 
@@ -43,6 +47,7 @@ class TraceView(QWidget):
 
         tab_widget.addTab(self._create_trace_tab(), "溯源格式化")
         tab_widget.addTab(self._create_bind_tab(), "视频绑定")
+        tab_widget.addTab(self._create_pool_tab(), "公海")
 
         main_layout.addWidget(tab_widget)
 
@@ -298,13 +303,127 @@ class TraceView(QWidget):
         return widget
 
     # ================================================================
+    # Tab 3: 公海（孤儿视频池）
+    # ================================================================
+    def _create_pool_tab(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(10)
+
+        tip = QLabel(
+            "公海说明: 以下视频来自快手报表，但溯源码未匹配到系统中的任何溯源记录，"
+            "处于「公海」状态，未归属任何剪辑/运营人员。"
+        )
+        tip.setWordWrap(True)
+        tip.setStyleSheet(
+            "color: #92400e; font-size: 12px; padding: 8px; "
+            "background: #fff7ed; border-radius: 6px; border: 1px solid #fed7aa;"
+        )
+        layout.addWidget(tip)
+
+        search_row = QHBoxLayout()
+        search_row.addWidget(QLabel("搜索:"))
+        self.pool_search_input = QLineEdit()
+        self.pool_search_input.setPlaceholderText("输入 photo_id / 视频名称 / 溯源码 搜索...")
+        self.pool_search_input.setFixedWidth(280)
+        self.pool_search_input.textChanged.connect(self._display_pool_page)
+        search_row.addWidget(self.pool_search_input)
+
+        self.pool_status_filter = QComboBox()
+        self.pool_status_filter.addItems(["全部状态", "未处理", "已处理"])
+        self.pool_status_filter.currentIndexChanged.connect(self._display_pool_page)
+        search_row.addWidget(self.pool_status_filter)
+
+        search_row.addStretch()
+
+        refresh_btn = QPushButton("刷新")
+        refresh_btn.clicked.connect(self._refresh_pool_data)
+        search_row.addWidget(refresh_btn)
+
+        layout.addLayout(search_row)
+
+        self.pool_table = QTableWidget()
+        self.pool_table.setColumnCount(7)
+        self.pool_table.setHorizontalHeaderLabels([
+            "Photo ID", "视频名称", "提取溯源码", "最近发现日期",
+            "状态", "创建时间", "更新时间"
+        ])
+        self.pool_table.setAlternatingRowColors(True)
+        self.pool_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.pool_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.pool_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.pool_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.pool_table.customContextMenuRequested.connect(self._show_pool_context_menu)
+
+        header = self.pool_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
+
+        self.pool_table.setStyleSheet("""
+            QTableWidget {
+                background: #ffffff;
+                border: 1px solid #e6e7ea;
+                border-radius: 8px;
+                gridline-color: #f1f2f4;
+                alternate-background-color: #fafafb;
+                font-size: 12px;
+            }
+            QTableWidget::item {
+                padding: 6px 10px;
+            }
+            QTableWidget::item:selected {
+                background: #ebecef;
+                color: #1a1a2e;
+            }
+            QHeaderView::section {
+                background: #f5f6f8;
+                padding: 8px 12px;
+                border: none;
+                border-bottom: 2px solid #e6e7ea;
+                font-weight: 600;
+                color: #4a4a5a;
+                font-size: 11px;
+            }
+        """)
+        layout.addWidget(self.pool_table, 1)
+
+        page_row = QHBoxLayout()
+        self.pool_prev_btn = QPushButton("上一页")
+        self.pool_prev_btn.setObjectName("ghost_btn")
+        self.pool_prev_btn.clicked.connect(self._pool_prev_page)
+        page_row.addWidget(self.pool_prev_btn)
+
+        self.pool_page_label = QLabel("第 0/0 页")
+        self.pool_page_label.setAlignment(Qt.AlignCenter)
+        self.pool_page_label.setFixedWidth(120)
+        page_row.addWidget(self.pool_page_label)
+
+        self.pool_next_btn = QPushButton("下一页")
+        self.pool_next_btn.setObjectName("ghost_btn")
+        self.pool_next_btn.clicked.connect(self._pool_next_page)
+        page_row.addWidget(self.pool_next_btn)
+
+        page_row.addStretch()
+
+        self.pool_info_label = QLabel("共 0 条")
+        self.pool_info_label.setAlignment(Qt.AlignRight)
+        page_row.addWidget(self.pool_info_label)
+
+        layout.addLayout(page_row)
+
+        return widget
+
+    # ================================================================
     # 数据加载
     # ================================================================
     def _load_operators(self):
-        import pymysql
-        from config import DB_CFG
         try:
-            conn = pymysql.connect(**DB_CFG)
+            conn = get_connection()
             cur = conn.cursor()
             cur.execute("SELECT id, real_name FROM sys_user WHERE role = 2 ORDER BY real_name")
             self.operators = cur.fetchall()
@@ -413,17 +532,14 @@ class TraceView(QWidget):
         self._log(f"\n{msg}")
         QMessageBox.information(self, "处理完成", msg)
 
-        # ... existing code ...
-        # ================================================================
-        # Tab2: 绑定列表 - 数据加载与显示
-        # ================================================================
+    # ================================================================
+    # Tab2: 绑定列表 - 数据加载与显示
+    # ================================================================
     def _refresh_bind_list(self):
-        import pymysql
-        from config import DB_CFG
         from pathlib import Path
 
         try:
-            conn = pymysql.connect(**DB_CFG)
+            conn = get_connection()
             cur = conn.cursor()
 
             user_role = self.current_user.get("role", 0) if self.current_user else 0
@@ -762,6 +878,226 @@ class TraceView(QWidget):
         if success:
             self._refresh_bind_list()
         QMessageBox.information(self, "操作结果", msg)
+
+    # ================================================================
+    # Tab3: 公海 - 数据加载与显示
+    # ================================================================
+    def _refresh_pool_data(self):
+        try:
+            conn = get_connection()
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, photo_id, photo_name, trace_code, 
+                       last_found_date, status, created_at, updated_at
+                FROM kuaishou_orphan_video
+                ORDER BY last_found_date DESC, id DESC
+            """)
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+
+            self._pool_data = []
+            for row in rows:
+                self._pool_data.append({
+                    "id": row[0],
+                    "photo_id": str(row[1] or ""),
+                    "photo_name": str(row[2] or ""),
+                    "trace_code": str(row[3] or ""),
+                    "last_found_date": str(row[4] or ""),
+                    "status": row[5] if row[5] is not None else 0,
+                    "created_at": str(row[6] or ""),
+                    "updated_at": str(row[7] or ""),
+                })
+
+            self._pool_page = 0
+            self._display_pool_page()
+
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"加载公海数据失败: {str(e)}")
+
+    def _get_filtered_pool_data(self):
+        keyword = self.pool_search_input.text().strip().lower()
+        status_idx = self.pool_status_filter.currentIndex()
+
+        result = self._pool_data
+
+        if status_idx == 1:
+            result = [r for r in result if r["status"] == 0]
+        elif status_idx == 2:
+            result = [r for r in result if r["status"] != 0]
+
+        if keyword:
+            result = [
+                r for r in result
+                if keyword in r["photo_id"].lower()
+                or keyword in r["photo_name"].lower()
+                or keyword in r["trace_code"].lower()
+            ]
+
+        return result
+
+    def _display_pool_page(self):
+        filtered = self._get_filtered_pool_data()
+        total = len(filtered)
+        total_pages = max(1, (total + self._pool_page_size - 1) // self._pool_page_size)
+
+        if self._pool_page >= total_pages:
+            self._pool_page = total_pages - 1
+        if self._pool_page < 0:
+            self._pool_page = 0
+
+        start = self._pool_page * self._pool_page_size
+        end = min(start + self._pool_page_size, total)
+        page_data = filtered[start:end]
+
+        self.pool_table.setRowCount(0)
+        self.pool_table.setRowCount(len(page_data))
+
+        status_map = {0: "未处理", 1: "已处理"}
+        status_colors = {0: "#f59e0b", 1: "#10b981"}
+
+        for row_idx, item in enumerate(page_data):
+            status_text = status_map.get(item["status"], str(item["status"]))
+            created_short = item["created_at"][:19] if len(item["created_at"]) > 10 else item["created_at"]
+            updated_short = item["updated_at"][:19] if len(item["updated_at"]) > 10 else item["updated_at"]
+
+            values = [
+                item["photo_id"],
+                item["photo_name"],
+                item["trace_code"] or "-",
+                item["last_found_date"],
+                status_text,
+                created_short,
+                updated_short,
+            ]
+
+            for col_idx, val in enumerate(values):
+                cell = QTableWidgetItem(str(val))
+                if col_idx == 4:
+                    cell.setForeground(QBrush(QColor(status_colors.get(item["status"], "#6b7280"))))
+                self.pool_table.setItem(row_idx, col_idx, cell)
+
+            self.pool_table.item(row_idx, 0).setData(Qt.UserRole, item)
+
+        self.pool_page_label.setText(f"第 {self._pool_page + 1}/{total_pages} 页")
+        self.pool_info_label.setText(f"共 {total} 条")
+        self.pool_prev_btn.setEnabled(self._pool_page > 0)
+        self.pool_next_btn.setEnabled(self._pool_page < total_pages - 1)
+
+    def _pool_prev_page(self):
+        if self._pool_page > 0:
+            self._pool_page -= 1
+            self._display_pool_page()
+
+    def _pool_next_page(self):
+        filtered = self._get_filtered_pool_data()
+        total_pages = max(1, (len(filtered) + self._pool_page_size - 1) // self._pool_page_size)
+        if self._pool_page < total_pages - 1:
+            self._pool_page += 1
+            self._display_pool_page()
+
+    # ================================================================
+    # Tab3: 公海 - 右键菜单
+    # ================================================================
+    def _show_pool_context_menu(self, pos):
+        row = self.pool_table.rowAt(pos.y())
+        if row < 0:
+            return
+
+        item = self.pool_table.item(row, 0)
+        if not item:
+            return
+        data = item.data(Qt.UserRole)
+        if not data:
+            return
+
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background: white;
+                border: 1px solid #e6e7ea;
+                border-radius: 6px;
+                padding: 4px 0;
+            }
+            QMenu::item {
+                padding: 8px 24px;
+                font-size: 12px;
+            }
+            QMenu::item:selected {
+                background: #ebecef;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #e6e7ea;
+                margin: 4px 12px;
+            }
+        """)
+
+        copy_id_action = QAction(f"复制 Photo ID: {data['photo_id']}", self)
+        copy_id_action.triggered.connect(lambda: self._pool_copy(data["photo_id"]))
+        menu.addAction(copy_id_action)
+
+        if data["photo_name"]:
+            copy_name_action = QAction(f"复制视频名称: {data['photo_name']}", self)
+            copy_name_action.triggered.connect(lambda: self._pool_copy(data["photo_name"]))
+            menu.addAction(copy_name_action)
+
+        if data["trace_code"]:
+            copy_tc_action = QAction(f"复制溯源码: {data['trace_code']}", self)
+            copy_tc_action.triggered.connect(lambda: self._pool_copy(data["trace_code"]))
+            menu.addAction(copy_tc_action)
+
+        menu.addSeparator()
+
+        refresh_action = QAction("刷新列表", self)
+        refresh_action.triggered.connect(self._refresh_pool_data)
+        menu.addAction(refresh_action)
+
+        menu.exec(self.pool_table.viewport().mapToGlobal(pos))
+
+    def _pool_copy(self, text: str):
+        QApplication.clipboard().setText(text)
+        tip = QLabel(f"已复制: {text[:40]}", self)
+        tip.setStyleSheet(
+            "background: #333; color: white; padding: 6px 14px; "
+            "border-radius: 6px; font-size: 12px;"
+        )
+        tip.adjustSize()
+        global_pos = self.pool_table.mapToGlobal(self.pool_table.rect().center())
+        tip.move(global_pos.x() - tip.width() // 2, global_pos.y() - 30)
+        tip.show()
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(1500, tip.deleteLater)
+
+    # ================================================================
+    # Tab3: 公海 - 认领
+    # ================================================================
+    def _on_pool_claim(self):
+        selected_rows = self.pool_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QMessageBox.warning(self, "提示", "请先选中要认领的视频")
+            return
+
+        row_idx = selected_rows[0].row()
+        item = self.pool_table.item(row_idx, 0)
+        if not item:
+            return
+        data = item.data(Qt.UserRole)
+        if not data:
+            return
+
+        msg = QMessageBox(self)
+        msg.setWindowTitle("认领公海视频")
+        msg.setIcon(QMessageBox.Information)
+        msg.setText(
+            f"认领功能需要以下服务支持:\n\n"
+            f"  • OOS（对象存储服务）— 用于视频文件转存\n"
+            f"  • 消息队列 — 用于异步处理认领任务\n\n"
+            f"当前环境尚未部署以上服务，请联系管理员配置。\n\n"
+            f"待认领视频: {data.get('photo_name', data.get('photo_id', ''))}"
+        )
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec()
 
     # ================================================================
     # 日志

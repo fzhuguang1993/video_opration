@@ -7,6 +7,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from config import DB_CFG
+from core.database import get_connection
+
 
 
 def md5_encrypt(s: str):

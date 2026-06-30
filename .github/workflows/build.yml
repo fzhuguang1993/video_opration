@@ -10,11 +10,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1. 升级 actions/checkout 到 v4
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 升级 actions/setup-python 到 v5
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -23,14 +21,25 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller PyQt5
+          pip install pyinstaller PySide6 pymysql requests smbprotocol pypinyin
 
       - name: Build EXE
         run: |
-          pyinstaller --onefile --windowed --name "VideoWatermark" --hidden-import PyQt5.QAxContainer package.py
+          pyinstaller --onefile --windowed --name "MovieOperation" `
+            --add-data "config.py;." `
+            --add-data "tool_config.json;." `
+            --add-data "ffmpeg/ffmpeg.exe;ffmpeg" `
+            --hidden-import PySide6.QtCore `
+            --hidden-import PySide6.QtWidgets `
+            --hidden-import PySide6.QtGui `
+            --hidden-import pymysql `
+            --hidden-import requests `
+            --hidden-import smbprotocol `
+            --hidden-import pypinyin `
+            main.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VideoWatermark
-          path: dist/VideoWatermark.exe
+          name: MovieOperation
+          path: dist/MovieOperation.exe

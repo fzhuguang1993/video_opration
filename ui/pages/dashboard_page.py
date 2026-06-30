@@ -2,9 +2,11 @@
 """仪表盘页面"""
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame
 from PySide6.QtCore import Qt
+
+from config import DB_CFG
 from core.logger import get_logger
 import pymysql
-from config import DB_CFG
+from core.database import get_connection
 
 
 class DashboardPage(QWidget):

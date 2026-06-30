@@ -5,12 +5,27 @@ from pathlib import Path
 from typing import Optional
 import json
 import os
+import sys
+import platform
 
 # ================================================================
 # 🌍 环境配置
 # ================================================================
 ENV = "test"  # "test" 或 "production"
 ENABLE_CONFIG_CACHE = ENV == "production"
+
+
+def _get_default_folder() -> str:
+    """获取默认工作目录（跨平台）"""
+    if platform.system() == "Windows":
+        return str(Path.home() / "Documents" / "movie_space")
+    return str(Path.home() / "Desktop" / "movie_space")
+
+
+def _get_default_watermark() -> str:
+    """获取默认水印路径（跨平台）"""
+    base = _get_default_folder()
+    return os.path.join(base, "水印", "shuiyin.png")
 
 
 @dataclass
@@ -42,8 +57,8 @@ class AppConfig:
     LOG_PANEL_MIN_HEIGHT: int = 80
 
     # 默认路径
-    DEFAULT_FOLDER: str = "/Users/leiliang/Desktop/movie_space"
-    DEFAULT_WATERMARK: str = "/Users/leiliang/Desktop/movie_space/水印/shuiyin.png"
+    DEFAULT_FOLDER: str = ""
+    DEFAULT_WATERMARK: str = ""
 
     # 分页
     PAGE_SIZE: int = 20
@@ -63,6 +78,12 @@ class AppConfig:
     TOOL_GRID_COLS: int = 4
     TOOL_MAX_BUTTONS: int = 7
     TOOL_BUTTON_MIN_HEIGHT: int = 32
+
+    def __post_init__(self):
+        if not self.DEFAULT_FOLDER:
+            self.DEFAULT_FOLDER = _get_default_folder()
+        if not self.DEFAULT_WATERMARK:
+            self.DEFAULT_WATERMARK = _get_default_watermark()
 
     @classmethod
     def load(cls, config_path: Optional[Path] = None) -> 'AppConfig':
@@ -102,7 +123,6 @@ class AppConfig:
     # 🎨 Linear 风格样式表
     # ================================================================
 
-    # ... existing code ...
     @property
     def full_stylesheet(self) -> str:
         """完整的样式表 - Linear 风格"""
@@ -131,8 +151,6 @@ class AppConfig:
             self.style_log_text,
             self.style_login_dialog,
         ])
-    # ... existing code ...
-
 
     # 表格样式
 
@@ -652,8 +670,6 @@ class AppConfig:
         """
 
     # ===== Tab 样式 =====
-    # ... existing code ...
-    # ===== Tab 样式 =====
     @property
     def style_assets_tab(self) -> str:
         return """
@@ -1091,10 +1107,6 @@ class AppConfig:
                 background: #ebecef;
             }
         """
-
-    # ... existing code ...
-
-
 
 # 单例配置
 _config: Optional[AppConfig] = None

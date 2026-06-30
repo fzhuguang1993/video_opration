@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from config import DB_CFG
+from core.database import get_connection
 
 
 def md5_encrypt(s: str) -> str:
@@ -109,6 +110,8 @@ class LoginDialog(QDialog):
             return
 
         try:
+            conn = get_connection()
+            cur = conn.cursor()
             conn = pymysql.connect(**DB_CFG)
             cur = conn.cursor()
             sql = """
